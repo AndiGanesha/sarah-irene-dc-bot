@@ -1,10 +1,11 @@
 package httpserver
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 	"net/http/pprof"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -16,8 +17,8 @@ type Server struct {
 
 func New(addr string, reg *prometheus.Registry) *Server {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request){ w.WriteHeader(200); w.Write([]byte("ok")) })
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request){ w.WriteHeader(200); w.Write([]byte("ready")) })
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200); w.Write([]byte("ok")) })
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200); w.Write([]byte("ready")) })
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -26,8 +27,8 @@ func New(addr string, reg *prometheus.Registry) *Server {
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
-	hsrv := &http.Server{ Addr: addr, Handler: mux }
-	return &Server{ addr: addr, mux: mux, hsrv: hsrv }
+	hsrv := &http.Server{Addr: addr, Handler: mux}
+	return &Server{addr: addr, mux: mux, hsrv: hsrv}
 }
 
 func (s *Server) Start() error {

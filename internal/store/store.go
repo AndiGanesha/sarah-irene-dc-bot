@@ -1,8 +1,8 @@
 package store
 
 import (
-	"context"
 	"database/sql"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -10,8 +10,12 @@ type DB struct{ *sql.DB }
 
 func Open(dsn string) (*DB, func() error, error) {
 	db, err := sql.Open("sqlite", dsn)
-	if err != nil { return nil, nil, err }
-	if err := migrate(db); err != nil { return nil, nil, err }
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := migrate(db); err != nil {
+		return nil, nil, err
+	}
 	return &DB{db}, db.Close, nil
 }
 
@@ -27,7 +31,9 @@ func migrate(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_dm_outbox_available ON dm_outbox(available_at);`,
 	}
 	for _, s := range stmts {
-		if _, err := db.Exec(s); err != nil { return err }
+		if _, err := db.Exec(s); err != nil {
+			return err
+		}
 	}
 	return nil
 }
