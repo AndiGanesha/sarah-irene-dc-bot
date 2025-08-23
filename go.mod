@@ -1,4 +1,4 @@
-module sarah-irene-dc-bot
+module github.com/AndiGanesha/sarah-irene-dc-bot
 
 go 1.25
 
