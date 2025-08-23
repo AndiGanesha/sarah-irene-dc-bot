@@ -11,22 +11,25 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/metrics"
-	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/store"
+
+	bolt "go.etcd.io/bbolt"
 )
 
 type Config struct {
 	Token          string
 	GuildID        string
 	VoiceChannelID string
-	Store          *store.DB
+	Store          *bolt.DB
 	Metrics        *metrics.Metrics
 }
 
 type Bot struct {
 	cfg     Config
 	session *discordgo.Session
-	jobs    chan DMJob
+	db      *bolt.DB
 	log     *zap.Logger
+
+	jobs chan DMJob
 }
 
 type DMJob struct {
