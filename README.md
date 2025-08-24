@@ -1,28 +1,108 @@
-# VC Sentry (MVP Skeleton)
+# Sarah Irene Discord Bot
 
-Single-binary Discord bot that watches one voice channel and DMs subscribers when:
-- Someone joins the voice channel
-- A member starts/stops/changes the game they are playing
-- Multiple different games are being played (summary DM)
+A single-binary Discord bot written in Go.
+Two main features:
 
-## Quick Start
-1. Set environment variables:
-   - `DISCORD_BOT_TOKEN` – bot token
-   - `GUILD_ID` – target guild
-   - `VOICE_CHANNEL_ID` – watched voice channel
-   - (optional) `HTTP_ADDR` – default `:8080`
-2. `go mod tidy`
-3. `go run ./cmd/vc-sentry`
+1. **VC Sentry** – Watches one configured voice channel, notifies subscribers via DM when:
 
-## Endpoints
-- `GET /healthz` – liveness
-- `GET /readyz` – readiness
-- `GET /metrics` – Prometheus metrics
-- `pprof` on `:6060`
+   * Someone joins the voice channel.
+   * A member starts/stops/changes the game they are playing.
+   * Multiple different games are being played → summary DM.
 
-## Packages
-- `internal/store` – SQLite (WAL) for settings, subscribers, presence, last_dm, dm_outbox
-- `internal/bot` – Discord session, intents, event handlers, DM worker pool
-- `internal/metrics` – Prometheus registry and collectors
-- `internal/http` – mux for health, metrics, pprof
+2. **Ask Command** – `/ask` connects to OpenAI **GPT-5** to answer user questions.
 
+   * Keeps short-term **per-user memory** (last 10 turns, max 24h) using bbolt.
+
+---
+
+## Features
+
+* Slash commands:
+
+  * `/subscribe` → subscribe to DM alerts.
+  * `/unsubscribe` → unsubscribe from alerts.
+  * `/status` → show current VC members + games.
+  * `/ask q:<question>` → AI answer with GPT-5, remembers context per user.
+* Observability endpoints:
+
+  * `GET /healthz`, `/readyz`, `/metrics`, `/debug/pprof/*`
+* Persistent state in **bbolt** (`.db` file, no external infra).
+* Prometheus metrics: event counts, DM sent/errors, job queue depth.
+* Graceful shutdown on SIGINT/SIGTERM.
+
+---
+
+## Requirements
+
+* Go 1.25
+* A Discord bot token (from Developer Portal).
+* OpenAI API key with GPT-5 access.
+
+---
+
+## Setup
+
+1. Clone repo and install deps:
+
+   ```bash
+   go mod tidy
+   ```
+
+2. Create `.env` or `local.env`:
+
+   ```env
+   DISCORD_BOT_TOKEN=xxx
+   GUILD_ID=123456789012345678
+   VOICE_CHANNEL_ID=987654321098765432
+
+   SERVER_HTTP=:8080
+
+   BBOLT_PATH=./vc-sentry.db
+   BBOLT_TIMEOUT_MS=3000
+
+   OPENAI_API_KEY=sk-xxxx
+   OPENAI_MODEL=gpt-5   # or gpt-5-mini
+   ```
+
+3. Run:
+
+   ```bash
+   go run ./cmd/vc-sentry
+   ```
+
+4. Invite the bot to your server with proper intents and permissions
+   (Presence Intent enabled in Developer Portal).
+
+---
+
+## Repo Structure
+
+```
+/main.go                  # entrypoint
+/application              # wire config, db, bot, httpserver
+/configuration            # env loader
+/internal
+--/core                   # business logic 
+--/metrics                # Prometheus setup
+--/httpserver             # health/metrics/pprof server
+--/adapter
+----/discord              # Discord slash handlers 
+--/integrations
+----/openai               # OpenAI client
+```
+
+---
+
+## Roadmap
+
+* **v1 (now)**: VC Sentry + /ask with GPT-5
+* **v1.1**: Durable DM outbox in bbolt, admin rate limits, pretty embeds
+* **v2**: Voice activation (capture → STT → trigger)
+
+---
+
+## Notes
+
+* bbolt buckets used: `settings`, `subscribers`, `vc_presence`, `last_dm`, `chat_history`.
+* Chat history is per user, max 10 turns, expires after 24h.
+* Rotate your Discord bot token & OpenAI key if they ever leak.
