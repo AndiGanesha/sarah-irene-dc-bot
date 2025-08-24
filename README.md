@@ -36,7 +36,7 @@ Two main features:
 
 * Go 1.25
 * A Discord bot token (from Developer Portal).
-* OpenAI API key with GPT-5 access.
+* OpenAI API key with access.
 
 ---
 
@@ -61,7 +61,7 @@ Two main features:
    BBOLT_TIMEOUT_MS=3000
 
    OPENAI_API_KEY=sk-xxxx
-   OPENAI_MODEL=gpt-5   # or gpt-5-mini
+   OPENAI_MODEL=gpt-xx-xxx
    ```
 
 3. Run:
