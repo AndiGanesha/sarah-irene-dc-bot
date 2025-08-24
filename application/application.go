@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/AndiGanesha/sarah-irene-dc-bot/configuration"
+	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/adapter/discord"
 	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/bot"
+	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/core/ask"
 	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/httpserver"
+	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/integrations/openai"
 	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/metrics"
 
 	// external packages
@@ -107,6 +110,11 @@ func NewApp(ctx context.Context, ctxCancel context.CancelFunc) (*App, error) {
 	}()
 	log.Println("server is up at", appConfig.Server.HTTP)
 
+	// Start OpenAI client
+	oa := openai.New(app.Configuration.OpenAI.APIKey)
+	askSvc := ask.New(oa)
+	askCmd := &discord.AskHandler{Svc: askSvc}
+
 	// Initialize Bot
 	b, err := bot.New(ctx, bot.Config{
 		Token:          app.Configuration.Discord.Token,
@@ -114,6 +122,7 @@ func NewApp(ctx context.Context, ctxCancel context.CancelFunc) (*App, error) {
 		VoiceChannelID: app.Configuration.Discord.VoiceChannelID,
 		Store:          db,
 		Metrics:        m,
+		AskCmd:         askCmd,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("bot.New: %w", err)

@@ -23,6 +23,7 @@ type Configuration struct {
 	Bbolt   Bbolt
 	Server  Server
 	Discord Discord
+	OpenAI  OpenAI
 }
 
 type Bbolt struct {
@@ -38,4 +39,8 @@ type Discord struct {
 	Token          string `env:"DISCORD_BOT_TOKEN"`
 	GuildID        string `env:"GUILD_ID"`
 	VoiceChannelID string `env:"VOICE_CHANNEL_ID"`
+}
+
+type OpenAI struct {
+	APIKey string `env:"OPENAI_API_KEY"`
 }

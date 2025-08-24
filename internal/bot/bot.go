@@ -10,6 +10,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"go.uber.org/zap"
 
+	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/adapter/discord"
 	"github.com/AndiGanesha/sarah-irene-dc-bot/internal/metrics"
 
 	bolt "go.etcd.io/bbolt"
@@ -21,6 +22,7 @@ type Config struct {
 	VoiceChannelID string
 	Store          *bolt.DB
 	Metrics        *metrics.Metrics
+	AskCmd         *discord.AskHandler
 }
 
 type Bot struct {
@@ -54,6 +56,16 @@ func (b *Bot) Start() error {
 	b.session.AddHandler(b.onVoiceState)
 	b.session.AddHandler(b.onPresence)
 	b.session.AddHandler(b.onMessage)
+	// Register slash commands
+	if b.cfg.AskCmd != nil {
+		if err := b.cfg.AskCmd.Register(b.session); err != nil {
+			b.log.Error("failed to register ask command", zap.Error(err))
+		}
+		// Handle interactions
+		b.session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			b.cfg.AskCmd.OnInteraction(s, i)
+		})
+	}
 
 	if err := b.session.Open(); err != nil {
 		return err
