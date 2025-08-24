@@ -53,9 +53,14 @@ func New(ctx context.Context, cfg Config) (*Bot, error) {
 }
 
 func (b *Bot) Start() error {
-	b.session.AddHandler(b.onVoiceState)
-	b.session.AddHandler(b.onPresence)
-	b.session.AddHandler(b.onMessage)
+	// workers
+	for i := 0; i < 4; i++ {
+		go b.worker()
+	}
+	if err := b.session.Open(); err != nil {
+		return err
+	}
+
 	// Register slash commands
 	if b.cfg.AskCmd != nil {
 		if err := b.cfg.AskCmd.Register(b.session); err != nil {
@@ -66,15 +71,10 @@ func (b *Bot) Start() error {
 			b.cfg.AskCmd.OnInteraction(s, i)
 		})
 	}
+	b.session.AddHandler(b.onVoiceState)
+	b.session.AddHandler(b.onPresence)
+	b.session.AddHandler(b.onMessage)
 
-	if err := b.session.Open(); err != nil {
-		return err
-	}
-
-	// workers
-	for i := 0; i < 4; i++ {
-		go b.worker()
-	}
 	return nil
 }
 

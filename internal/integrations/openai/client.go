@@ -5,70 +5,122 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
+)
+
+const (
+	responsesURL = "https://api.openai.com/v1/responses"
 )
 
 type Client struct {
 	APIKey string
-	Client *http.Client
 	Model  string
+	http   *http.Client
 }
 
-func New(apiKey string) *Client {
+func New(apiKey string, model string) *Client {
 	return &Client{
 		APIKey: apiKey,
-		Model:  "gpt-4.1-mini",
-		Client: &http.Client{Timeout: 12 * time.Second},
+		Model:  model,
+		http:   &http.Client{Timeout: 30 * time.Second}, // 30s timeout
 	}
 }
 
-type resp struct {
+type responsesAPI struct {
+	// Preferred field in Responses API: concatenated text
+	OutputText string `json:"output_text"`
+
+	// Generic content tree (sometimes "text" is a string, sometimes an object with {value:"..."})
 	Output []struct {
 		Content []struct {
-			Text *struct {
-				Value string `json:"value"`
-			} `json:"text,omitempty"`
+			Text any `json:"text,omitempty"`
 		} `json:"content"`
-	} `json:"output"`
+	} `json:"output,omitempty"`
+
+	// Fallback if someone accidentally calls Chat Completions
+	Choices []struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices,omitempty"`
 }
 
-func (c *Client) Ask(ctx context.Context, q string) (string, error) {
+func (c *Client) Ask(ctx context.Context, question string) (string, error) {
 	if c.APIKey == "" {
-		return "", errors.New("missing OPENAI_API_KEY")
+		return "", errors.New("openai: missing API key")
+	}
+	q := strings.TrimSpace(question)
+	if q == "" {
+		return "", errors.New("openai: empty question")
 	}
 
-	body := map[string]any{
+	payload := map[string]any{
 		"model": c.Model,
 		"input": []map[string]any{{"role": "user", "content": q}},
 	}
-	b, _ := json.Marshal(body)
+	b, _ := json.Marshal(payload)
 
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://api.openai.com/v1/responses", bytes.NewReader(b))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, responsesURL, bytes.NewReader(b))
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	res, err := c.Client.Do(req)
+	resp, err := c.http.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("openai: request failed: %w", err)
 	}
-	defer res.Body.Close()
+	defer resp.Body.Close()
 
-	if res.StatusCode >= 400 {
-		return "", errors.New(res.Status)
-	}
-
-	var out resp
-	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
-		return "", err
+	if resp.StatusCode >= 400 {
+		var body map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&body)
+		return "", fmt.Errorf("openai: %s: %v", resp.Status, body)
 	}
 
-	for _, o := range out.Output {
+	var out responsesAPI
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", fmt.Errorf("openai: decode failed: %w", err)
+	}
+
+	ans := extractAnswer(&out)
+	if strings.TrimSpace(ans) == "" {
+		return "", errors.New("openai: empty answer")
+	}
+	return ans, nil
+}
+
+func extractAnswer(r *responsesAPI) string {
+	if r == nil {
+		return ""
+	}
+	// 1) Preferred
+	if t := strings.TrimSpace(r.OutputText); t != "" {
+		return t
+	}
+	// 2) Walk content tree
+	for _, o := range r.Output {
 		for _, c := range o.Content {
-			if c.Text != nil {
-				return c.Text.Value, nil
+			switch v := c.Text.(type) {
+			case string:
+				if t := strings.TrimSpace(v); t != "" {
+					return t
+				}
+			case map[string]any:
+				if val, ok := v["value"].(string); ok {
+					if t := strings.TrimSpace(val); t != "" {
+						return t
+					}
+				}
 			}
 		}
 	}
-	return "No answer.", nil
+	// 3) Chat Completions fallback
+	if len(r.Choices) > 0 {
+		if t := strings.TrimSpace(r.Choices[0].Message.Content); t != "" {
+			return t
+		}
+	}
+	return ""
 }

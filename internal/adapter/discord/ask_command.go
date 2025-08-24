@@ -2,6 +2,7 @@ package discord
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -43,12 +44,21 @@ func (h *AskHandler) OnInteraction(s *discordgo.Session, i *discordgo.Interactio
 		Data: &discordgo.InteractionResponseData{Content: "Thinking…"},
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	ans, err := h.Svc.Answer(ctx, strings.TrimSpace(q))
+	userID := ""
+	if i.Member != nil && i.Member.User != nil {
+		userID = i.Member.User.ID
+	}
+	if userID == "" && i.User != nil {
+		userID = i.User.ID
+	}
+
+	ans, err := h.Svc.Answer(ctx, userID, strings.TrimSpace(q))
 	if err != nil {
 		ans = "Sorry, I couldn’t get an answer right now."
+		log.Println("ask error:", err)
 	}
 
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &ans})

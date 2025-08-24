@@ -27,6 +27,7 @@ const (
 	bktPresence    = "vc_presence" // user_id -> JSON{game, updated_at}
 	bktLastDM      = "last_dm"     // user_id -> JSON{state_hash, sent_at}
 	bktDMOutbox    = "dm_outbox"   // optional durable queue (v1.1)
+	bktChatHistory = "chat_history"
 )
 
 type App struct {
@@ -86,6 +87,7 @@ func NewApp(ctx context.Context, ctxCancel context.CancelFunc) (*App, error) {
 			bktPresence,
 			bktLastDM,
 			bktDMOutbox,
+			bktChatHistory,
 		}
 		for _, name := range buckets {
 			if _, e := tx.CreateBucketIfNotExists([]byte(name)); e != nil {
@@ -111,8 +113,8 @@ func NewApp(ctx context.Context, ctxCancel context.CancelFunc) (*App, error) {
 	log.Println("server is up at", appConfig.Server.HTTP)
 
 	// Start OpenAI client
-	oa := openai.New(app.Configuration.OpenAI.APIKey)
-	askSvc := ask.New(oa)
+	oa := openai.New(app.Configuration.OpenAI.APIKey, app.Configuration.OpenAI.Model)
+	askSvc := ask.New(oa, app.DB)
 	askCmd := &discord.AskHandler{Svc: askSvc}
 
 	// Initialize Bot

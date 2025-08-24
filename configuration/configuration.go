@@ -43,4 +43,5 @@ type Discord struct {
 
 type OpenAI struct {
 	APIKey string `env:"OPENAI_API_KEY"`
+	Model  string `env:"OPENAI_MODEL"`
 }
