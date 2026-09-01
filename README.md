@@ -67,11 +67,30 @@ Two main features:
 3. Run:
 
    ```bash
-   go run ./cmd/vc-sentry
+   go run .
    ```
 
 4. Invite the bot to your server with proper intents and permissions
    (Presence Intent enabled in Developer Portal).
+
+## Deployment
+
+Build and run the container with secrets supplied at runtime. Mount `/data` to
+retain the bbolt database across container replacements.
+
+```bash
+docker build -t sarah-irene-dc-bot .
+docker run --rm -p 8080:8080 -v sarah-irene-data:/data \
+  -e DISCORD_BOT_TOKEN \
+  -e GUILD_ID \
+  -e VOICE_CHANNEL_ID \
+  -e OPENAI_API_KEY \
+  -e OPENAI_MODEL \
+  sarah-irene-dc-bot
+```
+
+The HTTP listener exposes health and Prometheus metrics endpoints only. Put it
+behind an authenticated network boundary if metrics must not be public.
 
 ---
 

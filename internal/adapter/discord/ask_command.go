@@ -41,7 +41,10 @@ func (h *AskHandler) OnInteraction(s *discordgo.Session, i *discordgo.Interactio
 	q := i.ApplicationCommandData().Options[0].StringValue()
 	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: "Thinking…"},
+		Data: &discordgo.InteractionResponseData{
+			Content: "Thinking…",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

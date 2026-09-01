@@ -61,9 +61,15 @@ func (c *Client) Ask(ctx context.Context, question string) (string, error) {
 		"model": c.Model,
 		"input": []map[string]any{{"role": "user", "content": q}},
 	}
-	b, _ := json.Marshal(payload)
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("openai: encode request: %w", err)
+	}
 
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, responsesURL, bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, responsesURL, bytes.NewReader(b))
+	if err != nil {
+		return "", fmt.Errorf("openai: create request: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
